@@ -1,0 +1,34 @@
+---
+
+namespace: kubealex
+
+name: eda
+
+version: 1.0.0
+
+readme: README.md
+
+# A list of the collection's content authors. Can be just the name or in the format 'Full Name <email> (url)
+# @nicks:irc/im.site#channel'
+authors:
+  - Alessandro Rossi <al.rossi87@gmail.com>
+
+description: Event Driven Automation
+
+license_file: 'LICENSE'
+
+tags:
+  - eda
+  - ansible
+  - events
+  - mqtt
+
+# dependencies:
+
+repository: https://github.com/kubealex/kubealex.eda
+
+documentation: https://github.com/kubealex/kubealex.eda.git
+
+issues: https://github.com/kubealex/kubealex.eda.git/issues
+
+build_ignore: []
