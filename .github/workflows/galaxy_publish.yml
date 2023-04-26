@@ -1,0 +1,17 @@
+
+name: Publish on Galaxy
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  galaxy-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Ansible Publish
+        uses: ansible/ansible-publish-action@v1.0.0
+        with:
+          api_key: ${{ secrets.GALAXY_API_KEY }}
