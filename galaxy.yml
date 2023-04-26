@@ -8,8 +8,6 @@ version: 1.0.0
 
 readme: README.md
 
-# A list of the collection's content authors. Can be just the name or in the format 'Full Name <email> (url)
-# @nicks:irc/im.site#channel'
 authors:
   - Alessandro Rossi <al.rossi87@gmail.com>
 
@@ -22,6 +20,7 @@ tags:
   - ansible
   - events
   - mqtt
+  - infrastructure
 
 # dependencies:
 
