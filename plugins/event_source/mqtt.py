@@ -8,6 +8,7 @@ Arguments:
     password:           The password to connect to the broker
     ca_certs            The optional certificate authority file path containing
                         certificate used to sign mqtt broker certificates
+    validate_certs      Disable certificate validation - true/false
     certfile            The optional client certificate file path containing
                         the client certificate, as well as CA certificates needed
                         to establish the certificate's authenticity
@@ -38,6 +39,7 @@ async def main(queue: asyncio.Queue, args: Dict[str, Any]):
     password = args.get("password")
 
     ca_certs = args.get("ca_certs")
+    validate_certs = bool(args.get("validate_certs"))
     certfile = args.get("certfile")
     keyfile = args.get("keyfile")
     keyfile_password = args.get("keyfile_password")
@@ -47,7 +49,8 @@ async def main(queue: asyncio.Queue, args: Dict[str, Any]):
             ca_certs=ca_certs,
             certfile=certfile,
             keyfile=keyfile,
-            keyfile_password=keyfile_password
+            keyfile_password=keyfile_password,
+            cert_reqs=validate_certs if validate_certs is not None else True
         )
 
     mqtt_consumer = aiomqtt.Client(
