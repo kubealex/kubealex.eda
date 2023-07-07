@@ -91,7 +91,7 @@ def create_project(module):
         project_id = response.json().get('results', [{}])[0].get('id') if project_exists else None
 
         # Create or update the project
-        url = f"{controller_url}/api/eda/v1/projects/{project_id + '/' if project_id else ''}"
+        url = f"{controller_url}/api/eda/v1/projects/{str(project_id) + '/' if project_id else ''}"
         body = {
             'name': project_name,
             'description': project_description,
