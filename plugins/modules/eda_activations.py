@@ -76,7 +76,22 @@ from ansible.module_utils.basic import AnsibleModule
 import requests
 
 
-def create_activation(module):
+def get_decision_environment_id(controller_url, controller_user, controller_password, decision_env):
+    # Build the URL for retrieving the decision environment ID
+    url = f"{controller_url}/api/eda/v1/decision-environments/?name={decision_env}"
+    response = requests.get(url, auth=(controller_user, controller_password), verify=False)
+
+    if response.status_code in (200, 201):
+        results = response.json().get('results', [])
+        if results:
+            return results[0].get('id')
+        else:
+            raise Exception(f"Decision environment '{decision_env}' not found.")
+    else:
+        raise Exception(f"Failed to retrieve decision environment '{decision_env}': {response.text}")
+
+
+def create_activation(module, decision_env_id):
     # Extract input parameters from the module object
     controller_url = module.params['controller_url']
     controller_user = module.params['controller_user']
@@ -94,13 +109,16 @@ def create_activation(module):
         rulebook_id = activation.get('rulebook_id')
         extra_var_id = activation.get('extra_var_id')
 
+        # Retrieve decision environment ID
+        decision_env_id = get_decision_environment_id(controller_url, controller_user, controller_password, decision_env)
+
         # Build the request body
         body = {
             'restart_policy': restart_policy,
             'is_enabled': enabled,
             'name': name,
             'project_id': project_id,
-            'decision_environment_id': decision_env,
+            'decision_environment_id': decision_env_id,
             'rulebook_id': rulebook_id,
             'extra_var_id': extra_var_id
         }
