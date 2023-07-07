@@ -1,4 +1,37 @@
 #!/usr/bin/python
+DOCUMENTATION = """
+---
+module: eda_decision_environment
+short_description: Manage decision environments in EDA Controller
+version_added: '1.0'
+author: Your Name
+description:
+  - This module allows you to create/update decision environments in EDA Controller.
+options:
+  controller_url:
+    description:
+      - The URL of the EDA Controller API.
+    required: true
+  controller_user:
+    description:
+      - The username for authentication with the EDA Controller API.
+    required: true
+  controller_password:
+    description:
+      - The password for authentication with the EDA Controller API.
+    required: true
+    no_log: true
+  decision_environment_name:
+    description:
+      - The name of the decision environment in EDA Controller.
+    required: true
+  decision_environment_image_url:
+    description:
+      - The image URL of the decision environment in EDA Controller.
+    required: false
+    default: ''
+"""
+
 from ansible.module_utils.basic import AnsibleModule
 import requests
 

@@ -1,4 +1,42 @@
 #!/usr/bin/python
+DOCUMENTATION = """
+---
+module: eda_project
+short_description: Manage projects in EDA Controller
+version_added: '1.0'
+author: Your Name
+description:
+  - This module allows you to create/update projects in EDA Controller.
+options:
+  controller_url:
+    description:
+      - The URL of the EDA Controller API.
+    required: true
+  controller_user:
+    description:
+      - The username for authentication with the EDA Controller API.
+    required: true
+  controller_password:
+    description:
+      - The password for authentication with the EDA Controller API.
+    required: true
+    no_log: true
+  project_name:
+    description:
+      - The name of the project in EDA Controller.
+    required: true
+  project_description:
+    description:
+      - The description of the project in EDA Controller.
+    required: false
+    default: ''
+  project_git_url:
+    description:
+      - The Git URL of the project in EDA Controller.
+    required: false
+    default: ''
+"""
+
 from ansible.module_utils.basic import AnsibleModule
 import requests
 

@@ -1,4 +1,53 @@
 #!/usr/bin/python
+DOCUMENTATION = """
+---
+module: eda_activations
+short_description: Manage activations in EDA Controller
+version_added: '1.0'
+author: Your Name
+description:
+  - This module allows you to create activations in EDA Controller for a given project.
+options:
+  controller_url:
+    description:
+      - The URL of the EDA Controller API.
+    required: true
+  project_name:
+    description:
+      - The name of the project in EDA Controller.
+    required: true
+  controller_user:
+    description:
+      - The username for authentication with the EDA Controller API.
+    required: true
+  controller_password:
+    description:
+      - The password for authentication with the EDA Controller API.
+    required: true
+    no_log: true
+  restart_policy:
+    description:
+      - The restart policy for the activations. Default is "always".
+    required: false
+    default: "always"
+  enabled:
+    description:
+      - Whether the activations should be enabled. Default is true.
+    required: false
+    default: true
+  decision_env:
+    description:
+      - The name of the decision environment in EDA Controller.
+    required: true
+  activations:
+    description:
+      - A list of activation objects containing the following parameters:
+        - name: The name of the activation.
+        - rulebook: The name of the rulebook associated with the activation.
+        - extra_vars: (Optional) Additional variables for the activation.
+    required: true
+"""
+
 from ansible.module_utils.basic import AnsibleModule
 import requests
 
