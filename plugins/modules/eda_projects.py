@@ -2,51 +2,71 @@
 DOCUMENTATION = """
 ---
 module: eda_project
-short_description: Manage projects in EDA Controller
-version_added: '1.0'
-author: Your Name
+short_description: Manage EDA projects in the EDA Controller
 description:
-  - This module allows you to create/update projects in EDA Controller.
+  - This module allows you to create or update projects in the EDA Controller.
+version_added: "2.12"
 options:
   controller_url:
     description:
-      - The URL of the EDA Controller API.
+      - Base URL of the EDA Controller API.
+    type: str
     required: true
   controller_user:
     description:
-      - The username for authentication with the EDA Controller API.
+      - Username for basic authentication with the EDA Controller API.
+    type: str
     required: true
   controller_password:
     description:
-      - The password for authentication with the EDA Controller API.
+      - Password for basic authentication with the EDA Controller API.
+    type: str
     required: true
     no_log: true
   project_name:
     description:
-      - The name of the project in EDA Controller.
+      - Name of the project.
+    type: str
     required: true
   project_description:
     description:
-      - The description of the project in EDA Controller.
+      - Description of the project (optional).
+    type: str
     required: false
-    default: ''
+    default: ""
   project_git_url:
     description:
-      - The Git URL of the project in EDA Controller.
+      - Git URL of the project (optional).
+    type: str
     required: false
-    default: ''
+    default: ""
+  project_credential:
+    description:
+      - Name of the credential to associate with the project (optional).
+    type: str
+    required: false
+    default: ""
+notes:
+  - If the project already exists, it will be updated with the provided information.
+  - The module uses the EDA Controller API to manage the projects.
+  - The module does not support check mode.
+requirements:
+  - requests module
 """
 
 from ansible.module_utils.basic import AnsibleModule
 import requests
 
 
-def get_project_id(controller_url, controller_user, controller_password, project_name):
-    url = f"{controller_url}/api/eda/v1/projects/?name={project_name.replace(' ', '+')}"
+def get_project_credential_id(controller_url, controller_user, controller_password, project_credential):
+    if not project_credential:
+        return None
+
+    url = f"{controller_url}/api/eda/v1/credentials/?name={project_credential}"
     response = requests.get(url, auth=(controller_user, controller_password), verify=False)
     if response.status_code in (200, 201):
-        project_id = response.json().get('results', [{}])[0].get('id')
-        return int(project_id) if project_id else None
+        credential_id = response.json().get('results', [{}])[0].get('id')
+        return int(credential_id) if credential_id else None
 
 
 def create_project(module):
@@ -57,6 +77,10 @@ def create_project(module):
     project_name = module.params['project_name']
     project_description = module.params['project_description']
     project_git_url = module.params['project_git_url']
+    project_credential = module.params['project_credential']
+
+    # Retrieve project_credential_id
+    project_credential_id = get_project_credential_id(controller_url, controller_user, controller_password, project_credential)
 
     # Check if the project already exists
     url = f"{controller_url}/api/eda/v1/projects/?name={project_name.replace(' ', '+')}"
@@ -67,12 +91,15 @@ def create_project(module):
         project_id = response.json().get('results', [{}])[0].get('id') if project_exists else None
 
         # Create or update the project
-        url = f"{controller_url}/api/eda/v1/projects/{str(project_id) + '/' if project_id else ''}"
+        url = f"{controller_url}/api/eda/v1/projects/{project_id + '/' if project_id else ''}"
         body = {
             'name': project_name,
             'description': project_description,
-            'url': project_git_url
+            'url': project_git_url,
         }
+        if project_credential_id:
+            body['credential_id'] = project_credential_id
+
         response = requests.request(
             method,
             url,
@@ -98,6 +125,7 @@ def main():
         project_name=dict(type='str', required=True),
         project_description=dict(type='str', required=False, default=''),
         project_git_url=dict(type='str', required=False, default=''),
+        project_credential=dict(type='str', required=False, default='')
     )
 
     module = AnsibleModule(
