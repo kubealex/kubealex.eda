@@ -1,1 +1,2 @@
 - v1.0.0 - First release
+- v1.0.4 - Added modules to configure EDA Controller
