@@ -2,135 +2,193 @@
 DOCUMENTATION = """
 ---
 module: eda_activations
-short_description: Manage EDA activations in the EDA Controller
-description:
-  - This module allows you to create activations in the EDA Controller.
-version_added: "2.12"
+short_description: Create activations in EDA Controller for a given project and decision environment
 options:
   controller_url:
     description:
-      - Base URL of the EDA Controller API.
+      - The URL of the EDA Controller.
     type: str
     required: true
   controller_user:
     description:
-      - Username for basic authentication with the EDA Controller API.
+      - The username for authenticating with the EDA Controller.
     type: str
     required: true
   controller_password:
     description:
-      - Password for basic authentication with the EDA Controller API.
+      - The password for authenticating with the EDA Controller.
     type: str
     required: true
-    no_log: true
   activations:
     description:
-      - List of activation objects to create in the EDA Controller.
+      - The list of activations to create.
+      - Each activation requires the following parameters:
+        - name: The name of the activation.
+        - project_name: The name of the project associated with the activation.
+        - rulebook: The name of the rulebook associated with the activation.
+        - extra_vars: The extra variables for the activation.
+        - restart_policy: The restart policy for the activation. Default: 'always'
+        - enabled: Whether the activation should be enabled. Default: true
+        - decision_env: The name of the decision environment.
+      - At least one activation must be provided.
     type: list
     required: true
     elements: dict
-    suboptions:
+    options:
       name:
         description:
-          - Name of the activation.
+          - The name of the activation.
         type: str
         required: true
+      project_name:
+        description:
+          - The name of the project associated with the activation.
+        type: str
+        required: true
+      rulebook:
+        description:
+          - The name of the rulebook associated with the activation.
+        type: str
+        required: true
+      extra_vars:
+        description:
+          - The extra variables for the activation.
+          - Default: ''
+        type: str
+        default: ''
       restart_policy:
         description:
-          - Restart policy for the activation (default: always).
+          - The restart policy for the activation.
+          - Default: 'always'
         type: str
-        required: false
-        default: always
+        default: 'always'
       enabled:
         description:
-          - Whether the activation is enabled (default: true).
+          - Whether the activation should be enabled.
+          - Default: true
         type: bool
-        required: false
         default: true
       decision_env:
         description:
-          - ID of the decision environment to associate with the activation.
-        type: int
+          - The name of the decision environment.
+        type: str
         required: true
-      project_id:
-        description:
-          - ID of the project for the activation.
-        type: int
-        required: true
-      rulebook_id:
-        description:
-          - ID of the rulebook to associate with the activation.
-        type: int
-        required: true
-      extra_var_id:
-        description:
-          - ID of the extra variable to associate with the activation.
-        type: int
-        required: false
-requirements:
-  - requests module
-
 """
 
 from ansible.module_utils.basic import AnsibleModule
 import requests
 
 
-def get_decision_environment_id(controller_url, controller_user, controller_password, decision_env):
-    # Build the URL for retrieving the decision environment ID
-    url = f"{controller_url}/api/eda/v1/decision-environments/?name={decision_env}"
+def get_project_id(controller_url, controller_user, controller_password, project_name):
+    url = f"{controller_url}/api/eda/v1/projects/?name={project_name.replace(' ', '+')}"
     response = requests.get(url, auth=(controller_user, controller_password), verify=False)
-
     if response.status_code in (200, 201):
-        results = response.json().get('results', [])
-        if results:
-            return results[0].get('id')
-        else:
-            raise Exception(f"Decision environment '{decision_env}' not found.")
-    else:
-        raise Exception(f"Failed to retrieve decision environment '{decision_env}': {response.text}")
+        projects = response.json().get('results', [])
+        if projects:
+            return int(projects[0].get('id'))
+    return None
 
 
-def create_activation(module, decision_env_id):
+def get_denv_id(controller_url, controller_user, controller_password, decision_env):
+    url = f"{controller_url}/api/eda/v1/decision-environments/?name={decision_env.replace(' ', '+')}"
+    response = requests.get(url, auth=(controller_user, controller_password), verify=False)
+    if response.status_code in (200, 201):
+        denvs = response.json().get('results', [])
+        if denvs:
+            return int(denvs[0].get('id'))
+    return None
+
+
+def create_activations(module):
     # Extract input parameters from the module object
     controller_url = module.params['controller_url']
     controller_user = module.params['controller_user']
     controller_password = module.params['controller_password']
     activations = module.params['activations']
 
-    # Create activations
+    response_list = []
+
     for activation in activations:
-        # Extract activation parameters
-        name = activation.get('name')
-        restart_policy = activation.get('restart_policy', 'always')
-        enabled = activation.get('enabled', True)
+        project_name = activation.get('project_name')
         decision_env = activation.get('decision_env')
-        project_id = activation.get('project_id')
-        rulebook_id = activation.get('rulebook_id')
-        extra_var_id = activation.get('extra_var_id')
+        enabled = activation.get('enabled', True)
+        restart_policy = activation.get('restart_policy', 'always')
+        activation_name = activation['name']
+        rulebook_name = activation['rulebook']
 
-        # Retrieve decision environment ID
-        decision_env_id = get_decision_environment_id(controller_url, controller_user, controller_password, decision_env)
+        if not project_name:
+            module.fail_json(msg="Project name is required for each activation.")
+        if not decision_env:
+            module.fail_json(msg="Decision environment is required for each activation.")
 
-        # Build the request body
-        body = {
-            'restart_policy': restart_policy,
-            'is_enabled': enabled,
-            'name': name,
-            'project_id': project_id,
-            'decision_environment_id': decision_env_id,
-            'rulebook_id': rulebook_id,
-            'extra_var_id': extra_var_id
-        }
+        project_id = get_project_id(controller_url, controller_user, controller_password, project_name)
+        if project_id is None:
+            module.fail_json(msg=f"Project '{project_name}' not found.")
 
-        # Send the request to create the activation
-        url = f"{controller_url}/api/eda/v1/activations/"
-        response = requests.post(url, auth=(controller_user, controller_password), json=body, verify=False)
+        denv_id = get_denv_id(controller_url, controller_user, controller_password, decision_env)
+        if denv_id is None:
+            module.fail_json(msg=f"Decision environment '{decision_env}' not found.")
 
+        rulebook_list = []
+        extra_vars_list = []
+
+        # Retrieve rulebooks
+        url = f"{controller_url}/api/eda/v1/rulebooks/?project_id={project_id}"
+        response = requests.get(url, auth=(controller_user, controller_password), verify=False)
         if response.status_code in (200, 201):
-            module.exit_json(changed=True, activation_id=response.json().get('id'))
-        else:
-            module.fail_json(msg=f"Failed to create activation '{name}': {response.text}")
+            rulebooks = response.json().get('results', [])
+            for rulebook in rulebooks:
+                if rulebook['name'] == rulebook_name:
+                    rulebook_list.append({'name': activation_name, 'id': int(rulebook['id'])})
+                    break
+
+        # Create extra vars for activations
+        if 'extra_vars' in activation and activation['extra_vars']:
+            url = f"{controller_url}/api/eda/v1/extra-vars/"
+            body = {"extra_var": activation['extra_vars']}
+            response = requests.post(url, auth=(controller_user, controller_password),
+                                     json=body, verify=False)
+            if response.status_code in (200, 201):
+                extra_vars_list.append({'name': activation_name, 'var_id': int(response.json().get('id'))})
+
+        # Join rulebook_list and extra_vars_list
+        activations_list = []
+        for rulebook in rulebook_list:
+            activation = {
+                'name': rulebook['name'],
+                'project_id': project_id,
+                'decision_environment_id': denv_id,
+                'rulebook_id': rulebook['id'],
+                'restart_policy': restart_policy,
+                'is_enabled': enabled
+            }
+            for extra_vars in extra_vars_list:
+                if extra_vars['name'] == rulebook['name']:
+                    activation['extra_var_id'] = extra_vars['var_id']
+                    break
+            activations_list.append(activation)
+
+        # Create activations for given project
+        url = f"{controller_url}/api/eda/v1/activations/"
+        for activation in activations_list:
+            body = {
+                'restart_policy': activation['restart_policy'],
+                'is_enabled': activation['is_enabled'],
+                'name': activation['name'],
+                'project_id': activation['project_id'],
+                'decision_environment_id': activation['decision_environment_id'],
+                'rulebook_id': activation['rulebook_id'],
+            }
+            if 'extra_var_id' in activation:
+                body['extra_var_id'] = activation['extra_var_id']
+            headers = {'Content-Type': 'application/json'}
+            response = requests.post(url, auth=(controller_user, controller_password),
+                                     json=body, headers=headers, verify=False)
+            if response.status_code in (200, 201):
+                response_list.append(response.json())
+
+    module.exit_json(changed=True, activations=response_list)
+
 
 
 def main():
@@ -138,7 +196,20 @@ def main():
         controller_url=dict(type='str', required=True),
         controller_user=dict(type='str', required=True),
         controller_password=dict(type='str', required=True, no_log=True),
-        activations=dict(type='list', required=True),
+        activations=dict(
+            type='list',
+            required=True,
+            elements='dict',
+            options=dict(
+                name=dict(type='str', required=True),
+                project_name=dict(type='str', required=True),
+                rulebook=dict(type='str', required=True),
+                extra_vars=dict(type='str', default=''),
+                restart_policy=dict(type='str', default='always'),
+                enabled=dict(type='bool', default=True),
+                decision_env=dict(type='str', required=True),
+            ),
+        ),
     )
 
     module = AnsibleModule(
@@ -147,7 +218,7 @@ def main():
     )
 
     try:
-        create_activation(module)
+        create_activations(module)
     except Exception as e:
         module.fail_json(msg=str(e))
 
