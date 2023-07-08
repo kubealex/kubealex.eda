@@ -1,35 +1,54 @@
 #!/usr/bin/python
 DOCUMENTATION = """
 ---
-module: eda_decision_environment
-short_description: Manage decision environments in EDA Controller
-version_added: '1.0'
-author: Your Name
+module: eda_decision_envs
+short_description: Create or update EDA decision environments.
 description:
-  - This module allows you to create/update decision environments in EDA Controller.
+  - This module allows you to create or update EDA (Event-Driven Architecture) decision environments in a controller.
+version_added: "2.12"
 options:
   controller_url:
     description:
-      - The URL of the EDA Controller API.
+      - The URL of the EDA controller where the decision environments will be created or updated.
+    type: str
     required: true
   controller_user:
     description:
-      - The username for authentication with the EDA Controller API.
+      - The username for authenticating with the EDA controller.
+    type: str
     required: true
   controller_password:
     description:
-      - The password for authentication with the EDA Controller API.
+      - The password for authenticating with the EDA controller.
+    type: str
     required: true
     no_log: true
-  decision_environment_name:
+  decision_envs:
     description:
-      - The name of the decision environment in EDA Controller.
+      - A list of decision environments to create or update in the EDA controller.
+    type: list
     required: true
-  decision_environment_image_url:
-    description:
-      - The image URL of the decision environment in EDA Controller.
-    required: false
-    default: ''
+    elements: dict
+    options:
+      name:
+        description:
+          - The name of the decision environment.
+        type: str
+        required: true
+      image_url:
+        description:
+          - The image URL of the decision environment.
+        type: str
+        required: false
+notes:
+  - To create or update EDA decision environments, provide the necessary information through the 'decision_envs' list argument. Each decision environment should be a dictionary with the following subarguments:
+    - 'name' (mandatory): The name of the decision environment.
+    - 'image_url' (optional): The image URL of the decision environment.
+  - The module will check if a decision environment already exists based on the 'name' provided. If the decision environment exists, it will be updated; otherwise, a new decision environment will be created.
+  - The 'image_url' field is optional and can be used to specify the image URL associated with the decision environment.
+requirements:
+  - The 'requests' Python module must be installed on the Ansible control node.
+
 """
 
 from ansible.module_utils.basic import AnsibleModule
@@ -40,47 +59,57 @@ def get_decision_environment_id(controller_url, controller_user, controller_pass
     url = f"{controller_url}/api/eda/v1/decision-environments/?name={decision_environment_name.replace(' ', '+')}"
     response = requests.get(url, auth=(controller_user, controller_password), verify=False)
     if response.status_code in (200, 201):
-        denv_id = response.json().get('results', [{}])[0].get('id')
-        return int(denv_id) if denv_id else None
+        count = response.json().get('count', 0)
+        if count > 0:
+            denv_id = response.json().get('results', [{}])[0].get('id')
+            return int(denv_id) if denv_id else None
+    return None
 
 
-def create_decision_environment(module):
+def create_decision_environments(module):
     # Extract input parameters from the module object
     controller_url = module.params['controller_url']
     controller_user = module.params['controller_user']
     controller_password = module.params['controller_password']
-    decision_environment_name = module.params['decision_environment_name']
-    decision_environment_image_url = module.params['decision_environment_image_url']
+    decision_envs = module.params['decision_envs']
 
-    # Check if the decision environment already exists
-    url = f"{controller_url}/api/eda/v1/decision-environments/?name={decision_environment_name.replace(' ', '+')}"
-    response = requests.get(url, auth=(controller_user, controller_password), verify=False)
-    if response.status_code in (200, 201):
-        denv_exists = len(response.json().get('results', [])) > 0
-        method = 'PATCH' if denv_exists else 'POST'
-        denv_id = response.json().get('results', [{}])[0].get('id') if denv_exists else None
+    response_list = []
+
+    for decision_env in decision_envs:
+        name = decision_env['name']
+        image_url = decision_env.get('image_url', '')
+
+        # Check if the decision environment already exists
+        denv_id = get_decision_environment_id(controller_url, controller_user, controller_password, name)
+
+        # Prepare request body
+        body = {
+            'name': name,
+            'image_url': image_url
+        }
 
         # Create or update the decision environment
-        url = f"{controller_url}/api/eda/v1/decision-environments/{str(denv_id) + '/' if denv_id else ''}"
-        body = {
-            'name': decision_environment_name,
-            'image_url': decision_environment_image_url
-        }
+        url = f"{controller_url}/api/eda/v1/decision-environments/"
+        if denv_id:
+            url += f"{denv_id}/"
+
         response = requests.request(
-            method,
-            url,
+            method='PATCH' if denv_id else 'POST',
+            url=url,
             auth=(controller_user, controller_password),
             json=body,
             verify=False
         )
 
         if response.status_code in (200, 201):
-            denv_id = response.json().get('id')
-            module.exit_json(changed=True, denv_id=denv_id)
+            response_list.append(response.json())
         else:
-            module.fail_json(msg=f"Failed to create/update decision environment '{decision_environment_name}': {response.text}")
-    else:
-        module.fail_json(msg=f"Failed to check decision environment '{decision_environment_name}': {response.text}")
+            module.fail_json(msg=f"Failed to create or update decision environment '{name}': {response.text}")
+
+        # Debug message to display response content
+        module.debug(f"Response Content: {response.content}")
+
+    module.exit_json(changed=True, decision_environments=response_list)
 
 
 def main():
@@ -88,8 +117,7 @@ def main():
         controller_url=dict(type='str', required=True),
         controller_user=dict(type='str', required=True),
         controller_password=dict(type='str', required=True, no_log=True),
-        decision_environment_name=dict(type='str', required=True),
-        decision_environment_image_url=dict(type='str', required=False, default=''),
+        decision_envs=dict(type='list', required=True),
     )
 
     module = AnsibleModule(
@@ -98,7 +126,7 @@ def main():
     )
 
     try:
-        create_decision_environment(module)
+        create_decision_environments(module)
     except Exception as e:
         module.fail_json(msg=str(e))
 
