@@ -68,91 +68,108 @@ from ansible.module_utils.basic import AnsibleModule
 import requests
 
 
-def get_project_credential_id(controller_url, controller_user, controller_password, project_credential):
+def get_project_credential_id(
+    controller_url, controller_user, controller_password, project_credential
+):
     if not project_credential:
         return None
 
     url = f"{controller_url}/api/eda/v1/credentials/?name={project_credential}"
-    response = requests.get(url, auth=(controller_user, controller_password), verify=False)
+    response = requests.get(
+        url, auth=(controller_user, controller_password), verify=False
+    )
     if response.status_code in (200, 201):
-        credential_id = response.json().get('results', [{}])[0].get('id')
+        credential_id = response.json().get("results", [{}])[0].get("id")
         return int(credential_id) if credential_id else None
 
 
 def create_project(module):
     # Extract input parameters from the module object
-    controller_url = module.params['controller_url']
-    controller_user = module.params['controller_user']
-    controller_password = module.params['controller_password']
-    projects = module.params['projects']
+    controller_url = module.params["controller_url"]
+    controller_user = module.params["controller_user"]
+    controller_password = module.params["controller_password"]
+    projects = module.params["projects"]
 
     response_list = []
 
     for project in projects:
-        project_name = project['name']
-        project_description = project.get('description')
-        project_git_url = project['git_url']
-        project_credential = project.get('credential')
+        project_name = project["name"]
+        project_description = project.get("description")
+        project_git_url = project["git_url"]
+        project_credential = project.get("credential")
 
         # Retrieve project_credential_id
-        project_credential_id = get_project_credential_id(controller_url, controller_user, controller_password, project_credential)
+        project_credential_id = get_project_credential_id(
+            controller_url, controller_user, controller_password, project_credential
+        )
 
         # Check if the project already exists
         url = f"{controller_url}/api/eda/v1/projects/?name={project_name.replace(' ', '+')}"
-        response = requests.get(url, auth=(controller_user, controller_password), verify=False)
+        response = requests.get(
+            url, auth=(controller_user, controller_password), verify=False
+        )
         if response.status_code in (200, 201):
-            project_exists = len(response.json().get('results', [])) > 0
-            method = 'PATCH' if project_exists else 'POST'
-            project_id = response.json().get('results', [{}])[0].get('id') if project_exists else None
+            project_exists = len(response.json().get("results", [])) > 0
+            method = "PATCH" if project_exists else "POST"
+            project_id = (
+                response.json().get("results", [{}])[0].get("id")
+                if project_exists
+                else None
+            )
 
             # Create or update the project
             url = f"{controller_url}/api/eda/v1/projects/{str(project_id) + '/' if project_id else ''}"
             body = {
-                'name': project_name,
-                'url': project_git_url,
+                "name": project_name,
+                "url": project_git_url,
             }
             if project_description:
-                body['description'] = project_description
+                body["description"] = project_description
             if project_credential_id:
-                body['credential_id'] = project_credential_id
+                body["credential_id"] = project_credential_id
 
             response = requests.request(
                 method,
                 url,
                 auth=(controller_user, controller_password),
                 json=body,
-                verify=False
+                verify=False,
             )
 
             if response.status_code in (200, 201):
-                project_id = response.json().get('id')
-                response_list.append({'project_id': project_id})
+                project_id = response.json().get("id")
+                response_list.append({"project_id": project_id})
             else:
-                module.fail_json(msg=f"Failed to create/update project '{project_name}': {response.text}")
+                module.fail_json(
+                    msg=f"Failed to create/update project '{project_name}': {response.text}"
+                )
         else:
-            module.fail_json(msg=f"Failed to check project '{project_name}': {response.text}")
+            module.fail_json(
+                msg=f"Failed to check project '{project_name}': {response.text}"
+            )
 
     module.exit_json(changed=True, projects=response_list)
 
 
 def main():
     module_args = dict(
-        controller_url=dict(type='str', required=True),
-        controller_user=dict(type='str', required=True),
-        controller_password=dict(type='str', required=True, no_log=True),
-        projects=dict(type='list', required=True, elements='dict',
-                      options=dict(
-                          name=dict(type='str', required=True),
-                          description=dict(type='str', required=False),
-                          git_url=dict(type='str', required=True),
-                          credential=dict(type='str', required=False),
-                      ))
+        controller_url=dict(type="str", required=True),
+        controller_user=dict(type="str", required=True),
+        controller_password=dict(type="str", required=True, no_log=True),
+        projects=dict(
+            type="list",
+            required=True,
+            elements="dict",
+            options=dict(
+                name=dict(type="str", required=True),
+                description=dict(type="str", required=False),
+                git_url=dict(type="str", required=True),
+                credential=dict(type="str", required=False),
+            ),
+        ),
     )
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=False
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=False)
 
     try:
         create_project(module)
@@ -160,5 +177,5 @@ def main():
         module.fail_json(msg=str(e))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
