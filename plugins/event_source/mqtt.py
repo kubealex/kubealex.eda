@@ -1,8 +1,7 @@
 """mqtt.py.
-
 An ansible-rulebook event source plugin for receiving events via a mqtt topic.
-
 Arguments:
+---------
     host:               The host where the mqtt topic is hosted
     port:               The port where the mqtt server is listening
     username:           The username to connect to the broker
@@ -18,7 +17,6 @@ Arguments:
     keyfile_password    The optional password to be used when loading the
                         certificate chain
     topic:              The mqtt topic to subscribe to
-
 """
 
 import asyncio
@@ -73,7 +71,7 @@ async def main(queue: asyncio.Queue, args: dict[str, Any]) -> None:
                     data = json.loads(message.payload.decode())
                     await queue.put(data)
                 except json.decoder.JSONDecodeError as e:
-                    logger.exception(e)
+                    logger.exception("Decoding exception for incoming message")
     finally:
         logger.info("Disconneccting from broker")
         mqtt_consumer.disconnect()
@@ -93,5 +91,5 @@ if __name__ == "__main__":
         main(
             MockQueue(),
             {"topic": "eda", "host": "localhost", "port": "1883"},
-        )
+        ),
     )
