@@ -1,5 +1,7 @@
 """mqtt.py.
+
 An ansible-rulebook event source plugin for receiving events via a mqtt topic.
+
 Arguments:
 ---------
     host:               The host where the mqtt topic is hosted
@@ -17,6 +19,7 @@ Arguments:
     keyfile_password    The optional password to be used when loading the
                         certificate chain
     topic:              The mqtt topic to subscribe to
+
 """
 
 import asyncio
