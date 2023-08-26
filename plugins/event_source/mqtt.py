@@ -25,19 +25,19 @@ Arguments:
 import asyncio
 import json
 import logging
-from typing import Any, dict
+from typing import Any, Dict
 
 import aiomqtt as aiomqtt
 
 
-async def main(queue: asyncio.Queue, args: dict[str, Any]) -> None:
+async def main(queue: asyncio.Queue, args: Dict[str, Any]) -> None:
     """Receive events via a MQTT topic."""
     logger = logging.getLogger()
 
     topic = args.get("topic")
 
     host = args.get("host")
-    port = args.get("port")
+    port = int(args.get("port"))
     username = args.get("username")
     password = args.get("password")
 
