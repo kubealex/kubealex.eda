@@ -27,7 +27,7 @@ import json
 import logging
 from typing import Any, dict
 
-import asyncio_mqtt as aiomqtt
+import aiomqtt as aiomqtt
 
 
 async def main(queue: asyncio.Queue, args: dict[str, Any]) -> None:

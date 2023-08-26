@@ -1,2 +1,4 @@
 - v1.0.0 - First release
 - v1.0.4 - Added modules to configure EDA Controller
+- v1.0.5 - Added role to configure EDA Controller
+- v1.0.6 - Move asyncio_mqtt to aiomqtt
