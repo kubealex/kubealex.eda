@@ -71,7 +71,10 @@ async def main(queue: asyncio.Queue, args: Dict[str, Any]) -> None:
             await mqtt_consumer.subscribe(topic)
             async for message in messages:
                 try:
-                    data = json.loads(message.payload.decode())
+                    try:
+                        data = json.loads(message.payload.decode())
+                    except json.decoder.JSONDecodeError:
+                        data = dict(payload=message.payload.decode())
                     await queue.put(data)
                 except json.decoder.JSONDecodeError:
                     logger.exception("Decoding exception for incoming message")
