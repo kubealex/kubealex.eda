@@ -51,16 +51,16 @@ A sample rulebook using _kubealex.eda.mqtt_ plugin is shown below
 ```yaml
 ---
 - name: Hello Events
-    hosts: all
-    sources:
+  hosts: all
+  sources:
     - kubealex.eda.mqtt:
         host: localhost
         port: 1883
         topic: anomaly-data-out
-    rules:
+  rules:
     - name: Debug connection
-    condition: event.sensor_location is defined
-    action:
+      condition: event.sensor_location is defined
+      action:
         debug:
 ```
 
