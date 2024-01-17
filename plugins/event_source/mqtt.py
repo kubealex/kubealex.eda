@@ -63,21 +63,17 @@ async def main(queue: asyncio.Queue, args: Dict[str, Any]) -> None:
         password=password,
         tls_params=tls_params if ca_certs else None,
     )
-
-    await mqtt_consumer.connect()
-
-    try:
-        async with mqtt_consumer.messages() as messages:
+    async with mqtt_consumer:
+        try:
             await mqtt_consumer.subscribe(topic)
-            async for message in messages:
+            async for message in mqtt_consumer.messages:
                 try:
                     data = json.loads(message.payload.decode())
                     await queue.put(data)
                 except json.decoder.JSONDecodeError:
                     logger.exception("Decoding exception for incoming message")
-    finally:
-        logger.info("Disconneccting from broker")
-        mqtt_consumer.disconnect()
+        finally:
+            logger.info("Disconneccting from broker")
 
 
 if __name__ == "__main__":
@@ -96,3 +92,4 @@ if __name__ == "__main__":
             {"topic": "eda", "host": "localhost", "port": "1883"},
         ),
     )
+
