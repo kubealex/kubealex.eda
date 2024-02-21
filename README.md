@@ -106,7 +106,7 @@ A sample playbook to create items using the modules is shown below:
             decision_env: Decision Environment 2
 
     - name: Create EDA Decision Environments
-      kubealex.eda.eda_decision_envs:
+      kubealex.eda.eda_decision_environment:
         controller_url: "https://example-controller.com"
         controller_user: "admin"
         controller_password: "admin123"
