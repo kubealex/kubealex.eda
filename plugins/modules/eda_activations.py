@@ -30,6 +30,7 @@ options:
         - restart_policy: The restart policy for the activation. Default: 'always'
         - enabled: Whether the activation should be enabled. Default: true
         - decision_env: The name of the decision environment.
+        - controller_token: The name of the controller token
       - At least one activation must be provided.
     type: list
     required: true
@@ -73,6 +74,11 @@ options:
           - The name of the decision environment.
         type: str
         required: true
+      controller_token:
+        description:
+          - The name of the Controller Token to use
+        type: str
+        required: true
 """
 
 from ansible.module_utils.basic import AnsibleModule
@@ -102,6 +108,18 @@ def get_denv_id(controller_url, controller_user, controller_password, decision_e
             return int(denvs[0].get("id"))
     return None
 
+def get_token_id(controller_url, controller_user, controller_password, controller_token):
+    url = f"{controller_url}/api/eda/v1/users/me/awx-tokens/"
+    response = requests.get(
+        url, auth=(controller_user, controller_password), verify=False
+    )
+    if response.status_code in (200, 201):
+        awx_tokens = response.json().get("results", [])
+        if awx_tokens:
+            for token in awx_tokens:
+              if token.get("name") == controller_token:
+                return token.get("id")
+    return None
 
 def create_activations(module):
     # Extract input parameters from the module object
@@ -115,6 +133,7 @@ def create_activations(module):
     for activation in activations:
         project_name = activation.get("project_name")
         decision_env = activation.get("decision_env")
+        controller_token = activation.get("controller_token")
         enabled = activation.get("enabled", True)
         restart_policy = activation.get("restart_policy", "always")
         activation_name = activation["name"]
@@ -126,6 +145,8 @@ def create_activations(module):
             module.fail_json(
                 msg="Decision environment is required for each activation."
             )
+        if not controller_token:
+            module.fail_json(msg="Controller token name is required for each activation.")
 
         project_id = get_project_id(
             controller_url, controller_user, controller_password, project_name
@@ -138,6 +159,10 @@ def create_activations(module):
         )
         if denv_id is None:
             module.fail_json(msg=f"Decision environment '{decision_env}' not found.")
+
+        awx_token_id = get_token_id(controller_url, controller_user, controller_password, controller_token)
+        if not awx_token_id:
+            module.fail_json(msg=f"Controller token '{controller_token}' not found for user: '{controller_user}'")
 
         rulebook_list = []
 
@@ -169,6 +194,7 @@ def create_activations(module):
                 "rulebook_id": rulebook_id,
                 "restart_policy": restart_policy,
                 "is_enabled": enabled,
+                "awx_token_id": awx_token_id
             }
             if "extra_vars" in activation and activation["extra_vars"]:
                 vars_url = f"{controller_url}/api/eda/v1/extra-vars/"
@@ -221,6 +247,7 @@ def main():
                 restart_policy=dict(type='str', default='always'),
                 enabled=dict(type='bool', default=True),
                 decision_env=dict(type='str', required=True),
+                controller_token=dict(type='str', required=True),
             ),
         ),
     )
