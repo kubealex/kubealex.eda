@@ -2,3 +2,4 @@
 - v1.0.4 - Added modules to configure EDA Controller
 - v1.0.5 - Added role to configure EDA Controller
 - v1.0.7 - Move asyncio_mqtt to aiomqtt
+- v1.0.10 - Adapt to AAP 2.5 - remove unused modules
